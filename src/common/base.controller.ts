@@ -1,10 +1,12 @@
 import { IControllerRoute } from './route.interface';
 import { Router, Response } from 'express';
 import { ILogger } from '../logger/logger.interface';
+import { injectable } from 'inversify';
 
+@injectable()
 export abstract class BaseController {
   private readonly _router: Router = Router();
-  protected constructor(protected logger: ILogger) {}
+  public constructor(private logger: ILogger) {}
   get router() {
     return this._router;
   }
@@ -21,8 +23,12 @@ export abstract class BaseController {
   protected bindRoutes(routes: IControllerRoute[]) {
     routes.forEach((route) => {
       this.logger.log(`[${route.method}] ${route.path}`);
+      const middlewares = route.middlewares?.map((m) => {
+        return m.execute.bind(m);
+      });
       const handler = route.callback.bind(this);
-      this._router[route.method](route.path, handler);
+      const pipeline = middlewares ? [...middlewares, handler] : handler;
+      this._router[route.method](route.path, pipeline);
     });
   }
 }
