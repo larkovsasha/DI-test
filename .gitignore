@@ -1,2 +1,5 @@
 node_modules
 dist
+prisma/dev.db-journal
+prisma/dev.db
+.env

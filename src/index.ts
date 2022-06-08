@@ -7,14 +7,29 @@ import { ILogger } from './logger/logger.interface';
 import { TYPES } from './types';
 import { IExceptionFilter } from './errors/exception.filter.interface';
 import { IUsersController } from './users/controller/users.controller.interface';
-import { IUserService } from './users/service/user.service.interface';
-import { UserService } from './users/service/user.service';
+import { IUsersService } from './users/service/users.service.interface';
+import { UsersService } from './users/service/usersService';
+import { IConfigService } from './config/config.service.interface';
+import { ConfigService } from './config/config.service';
+import { PrismaService } from './data-base/prisma.service';
+import { IUsersRepository } from './users/repository/users.repository.interface';
+import { UsersRepository } from './users/repository/users.repository';
 
 export const appBindings = new ContainerModule((bind: interfaces.Bind) => {
-  bind<ILogger>(TYPES.Logger).to(LoggerService);
+  bind<ILogger>(TYPES.Logger).to(LoggerService).inSingletonScope();
   bind<IExceptionFilter>(TYPES.ExceptionFilter).to(ExceptionFilter);
   bind<IUsersController>(TYPES.UserController).to(UsersController);
-  bind<IUserService>(TYPES.UserService).to(UserService);
+  bind<IUsersService>(TYPES.UserService).to(UsersService).inSingletonScope();
+  bind<PrismaService>(TYPES.PrismaService).to(PrismaService).inSingletonScope();
+
+  bind<IUsersRepository>(TYPES.UsersRepository)
+    .to(UsersRepository)
+    .inSingletonScope();
+
+  bind<IConfigService>(TYPES.ConfigService)
+    .to(ConfigService)
+    .inSingletonScope();
+
   bind<App>(TYPES.Application).to(App);
 });
 

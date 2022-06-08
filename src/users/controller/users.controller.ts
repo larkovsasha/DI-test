@@ -6,9 +6,14 @@ import 'reflect-metadata';
 import { IUsersController } from './users.controller.interface';
 import { UserLoginDto } from '../dto/user-login.dto';
 import { UserRegisterDto } from '../dto/user-register.dto';
-import { UserService } from '../service/user.service';
+import { UsersService } from '../service/usersService';
 import { ILogger } from '../../logger/logger.interface';
-import { ValidateMiddleware } from '../../common/middleware/validate.middleware';
+import { ValidateMiddleware } from '../../common/middlewares/validate.middleware';
+import { HttpError } from '../../errors/http-error.class';
+import { IConfigService } from '../../config/config.service.interface';
+import { sign } from 'jsonwebtoken';
+import { AuthMiddleware } from '../../common/middlewares/auth.middleware';
+import { AuthGuard } from '../../common/middlewares/auth.guard.';
 
 @injectable()
 export class UsersController
@@ -17,7 +22,8 @@ export class UsersController
 {
   constructor(
     @inject(TYPES.Logger) private loggerService: ILogger,
-    @inject(TYPES.UserService) private UserService: UserService
+    @inject(TYPES.UserService) private userService: UsersService,
+    @inject(TYPES.ConfigService) private configService: IConfigService
   ) {
     super(loggerService);
     this.bindRoutes([
@@ -27,11 +33,22 @@ export class UsersController
         path: '/register',
         middlewares: [new ValidateMiddleware(UserRegisterDto)],
       },
-      { method: 'post', callback: this.login, path: '/login' },
+      {
+        method: 'post',
+        callback: this.login,
+        path: '/login',
+        middlewares: [new ValidateMiddleware(UserLoginDto)],
+      },
+      {
+        method: 'get',
+        callback: this.info,
+        path: '/info',
+        middlewares: [new AuthGuard()],
+      },
     ]);
   }
 
-  login(
+  async login(
     req: Request<
       Record<string, unknown>,
       Record<string, unknown>,
@@ -40,7 +57,15 @@ export class UsersController
     res: Response,
     next: NextFunction
   ) {
-    this.ok(res, 'login');
+    const result = await this.userService.validateUser(req.body);
+    if (!result) {
+      return next(new HttpError(422, 'User does not exist'));
+    }
+    const jwt = await this.signJWT(
+      req.body.email,
+      this.configService.get('SECRET')
+    );
+    this.ok(res, { jwt });
   }
 
   async register(
@@ -54,6 +79,45 @@ export class UsersController
     res: Response,
     next: NextFunction
   ) {
-    this.ok(res, 'register');
+    const result = await this.userService.createUser(body);
+    if (!result) {
+      return next(new HttpError(422, 'User already exist'));
+    }
+    this.ok(res, { email: result.email, id: result.id });
+  }
+  async info(
+    {
+      user,
+    }: Request<
+      Record<string, unknown>,
+      Record<string, unknown>,
+      UserRegisterDto
+    >,
+    res: Response,
+    next: NextFunction
+  ) {
+    const userInfo = await this.userService.getUserInfo(user as string);
+    this.ok(res, { email: userInfo?.email, id: userInfo?.id });
+  }
+
+  private signJWT(email: string, secret: string): Promise<string> {
+    return new Promise<string>((res, rej) => {
+      sign(
+        {
+          email,
+          iat: Math.floor(Date.now() / 1000),
+        },
+        secret,
+        {
+          algorithm: 'HS256',
+        },
+        (err, token) => {
+          if (err) {
+            rej(err);
+          }
+          res(token as string);
+        }
+      );
+    });
   }
 }
