@@ -12,7 +12,6 @@ import { ValidateMiddleware } from '../../common/middlewares/validate.middleware
 import { HttpError } from '../../errors/http-error.class';
 import { IConfigService } from '../../config/config.service.interface';
 import { sign } from 'jsonwebtoken';
-import { AuthMiddleware } from '../../common/middlewares/auth.middleware';
 import { AuthGuard } from '../../common/middlewares/auth.guard.';
 
 @injectable()
@@ -59,7 +58,7 @@ export class UsersController
   ) {
     const result = await this.userService.validateUser(req.body);
     if (!result) {
-      return next(new HttpError(422, 'User does not exist'));
+      return next(new HttpError(401, 'User does not exist'));
     }
     const jwt = await this.signJWT(
       req.body.email,

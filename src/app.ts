@@ -13,7 +13,7 @@ import { AuthMiddleware } from './common/middlewares/auth.middleware';
 
 @injectable()
 export class App {
-  private app: Express;
+  readonly app: Express;
   private server: Server;
   readonly port: number;
 
@@ -48,5 +48,8 @@ export class App {
     this.server = this.app.listen(this.port);
     await this.prismaService.connect();
     this.logger.log(`Server has been started on ${this.port}`);
+  }
+  close() {
+    this.server.close();
   }
 }
